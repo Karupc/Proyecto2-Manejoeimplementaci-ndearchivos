@@ -9,7 +9,7 @@ ETIQUETAS = {"id": "ID", "nombre": "Nombre", "telefono": "Teléfono",
 TAMANO_REGISTRO = sum(LONGITUDES.values())  # 110 bytes por registro
 
 def validar_datos(datos):
-    """Valida los cinco campos. Devuelve (datos_limpios, error)."""
+    #Valida los cinco campos. Devuelve (datos_limpios, error).
     limpios = {}
     for campo in NOMBRES_CAMPOS:
         valor = str(datos.get(campo, "")).strip()
@@ -27,8 +27,38 @@ def validar_datos(datos):
 
 
 def convertir_id(texto):
-    """Convierte el texto del ID a entero positivo. Devuelve None si no es válido."""
+    #Convierte el texto del ID a entero positivo. Devuelve None si no es válido.
     texto = str(texto).strip()
     if texto.isascii() and texto.isdigit() and int(texto) > 0:
         return int(texto)
     return None
+
+def codificar_registro(datos):
+    #Convierte un contacto en bytes de tamaño fijo.
+    registro = b""
+    for campo in NOMBRES_CAMPOS:
+        registro += datos[campo].encode("utf-8").ljust(LONGITUDES[campo], b" ")
+    return registro
+
+
+def decodificar_registro(registro):
+    #Convierte los bytes de un registro en un diccionario.
+    datos = {}
+    inicio = 0
+    for campo in NOMBRES_CAMPOS:
+        fin = inicio + LONGITUDES[campo]
+        datos[campo] = registro[inicio:fin].decode("utf-8").rstrip()
+        inicio = fin
+    datos["id"] = int(datos["id"])
+    return datos
+
+
+def leer_registro(archivo, numero_registro):
+    #Lee un registro usando seek() y tell(). El archivo debe estar abierto en binario.
+    posicion = numero_registro * TAMANO_REGISTRO
+    archivo.seek(posicion)
+    print(f"[tell] Puntero en el byte {archivo.tell()} antes de leer el registro {numero_registro}")
+    registro = archivo.read(TAMANO_REGISTRO)
+    if len(registro) != TAMANO_REGISTRO:
+        raise ValueError(f"El registro {numero_registro} está incompleto o fuera del archivo.")
+    return decodificar_registro(registro)
