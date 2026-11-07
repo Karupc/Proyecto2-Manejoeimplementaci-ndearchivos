@@ -87,3 +87,18 @@ def verificar_integridad():
                        "de la aplicación.")
     except OSError as error:
         return False, mensaje_error(error)
+
+def inicializar_archivos():
+    """Crea contactos.dat, indice.json y contactos.sha256 si no existen
+    (primera ejecución). Devuelve un mensaje de error o None."""
+    try:
+        if not os.path.exists(RUTA_DATOS):
+            with open(RUTA_DATOS, "wb"):
+                pass
+        if not os.path.exists(RUTA_INDICE):
+            guardar_indice({})
+        if not os.path.exists(RUTA_HASH):
+            guardar_hash()
+        return None
+    except OSError as error:
+        return mensaje_error(error)
