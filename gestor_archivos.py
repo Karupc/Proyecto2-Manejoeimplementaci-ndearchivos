@@ -119,7 +119,78 @@ def iniciar_almacenamiento():
         avisos.append(mensaje_error(error))
     return avisos
 
-
 def con_aviso(mensaje, aviso):
     """Agrega el aviso del índice (si existe) al mensaje."""
     return mensaje + (f"\n\n{aviso}" if aviso else "")
+
+def agregar_contacto(datos):
+    """Agrega un contacto al final del archivo. Devuelve (ok, mensaje)."""
+    limpios, error = validar_datos(datos)
+    if error:
+        return False, error
+    try:
+        indice, aviso = obtener_indice()
+        id_contacto = int(limpios["id"])
+        if indice_seguridad.buscar_posicion(indice, id_contacto) is not None:
+            return False, f"Ya existe un contacto con el ID {id_contacto}."
+        if not os.path.exists(RUTA_DATOS):
+            with open(RUTA_DATOS, "wb"):
+                pass
+        if os.path.getsize(RUTA_DATOS) % TAMANO_REGISTRO != 0:
+            return False, "contactos.dat tiene un tamaño inválido (posiblemente dañado)."
+        with open(RUTA_DATOS, "rb+") as archivo:
+            archivo.seek(0, os.SEEK_END)  # nos ubicamos al final
+            posicion = archivo.tell()
+            numero_registro = posicion // TAMANO_REGISTRO
+            print(f"[tell] Puntero en el byte {posicion} antes de escribir el registro {numero_registro}")
+            archivo.write(codificar_registro(limpios))
+        indice[str(id_contacto)] = numero_registro
+        indice_seguridad.guardar_indice(indice)
+        indice_seguridad.guardar_hash()
+        return True, con_aviso(f"Contacto {id_contacto} guardado en el registro {numero_registro}.", aviso)
+    except (OSError, ValueError) as error:
+        return False, mensaje_error(error)
+
+
+def buscar_contacto(id_texto):
+    """Busca un contacto por ID usando el índice. Devuelve (contacto, mensaje)."""
+    id_contacto = convertir_id(id_texto)
+    if id_contacto is None:
+        return None, "El ID debe ser un número entero positivo."
+    try:
+        indice, aviso = obtener_indice()
+        numero_registro = indice_seguridad.buscar_posicion(indice, id_contacto)
+        if numero_registro is None:
+            return None, con_aviso(f"No existe un contacto con el ID {id_contacto}.", aviso)
+        with open(RUTA_DATOS, "rb") as archivo:
+            contacto = leer_registro(archivo, numero_registro)
+        if contacto["id"] != id_contacto:
+            return None, "El índice no coincide con el contenido de contactos.dat."
+        byte = numero_registro * TAMANO_REGISTRO
+        return contacto, con_aviso(f"Contacto encontrado en el registro {numero_registro} (byte {byte}).", aviso)
+    except (OSError, ValueError) as error:
+        return None, mensaje_error(error)
+
+
+def modificar_contacto(datos):
+    """Sobrescribe únicamente el registro del contacto. Devuelve (ok, mensaje)."""
+    limpios, error = validar_datos(datos)
+    if error:
+        return False, error
+    try:
+        indice, aviso = obtener_indice()
+        id_contacto = int(limpios["id"])
+        numero_registro = indice_seguridad.buscar_posicion(indice, id_contacto)
+        if numero_registro is None:
+            return False, con_aviso(f"No existe un contacto con el ID {id_contacto}.", aviso)
+        with open(RUTA_DATOS, "rb+") as archivo:
+            actual = leer_registro(archivo, numero_registro)  # confirma el ID
+            if actual["id"] != id_contacto:
+                return False, "El índice no coincide con el contenido de contactos.dat."
+            archivo.seek(numero_registro * TAMANO_REGISTRO)
+            print(f"[tell] Puntero en el byte {archivo.tell()} antes de escribir el registro {numero_registro}")
+            archivo.write(codificar_registro(limpios))  # solo este registro
+        indice_seguridad.guardar_hash()
+        return True, con_aviso(f"Contacto {id_contacto} modificado en el registro {numero_registro}.", aviso)
+    except (OSError, ValueError) as error:
+        return False, mensaje_error(error)
