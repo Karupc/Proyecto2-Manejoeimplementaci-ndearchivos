@@ -194,3 +194,16 @@ def modificar_contacto(datos):
         return True, con_aviso(f"Contacto {id_contacto} modificado en el registro {numero_registro}.", aviso)
     except (OSError, ValueError) as error:
         return False, mensaje_error(error)
+
+def exportar_contactos():
+    """Lee todos los contactos desde contactos.dat y los devuelve como lista de
+    diccionarios, formato usado por herramientas.py. Devuelve (lista, error)."""
+    try:
+        indice, aviso = obtener_indice()
+        contactos = []
+        with open(RUTA_DATOS, "rb") as archivo:
+            for numero_registro in sorted(indice.values()):
+                contactos.append(leer_registro(archivo, numero_registro))
+        return contactos, None
+    except (OSError, ValueError) as error:
+        return None, mensaje_error(error)
