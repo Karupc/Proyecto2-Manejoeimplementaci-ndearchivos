@@ -130,3 +130,24 @@ def crear_respaldo():
         return True, "Respaldo creado: respaldo.zip", tamanos
     except (OSError, zipfile.BadZipFile) as error:
         return False, f"Error al crear el respaldo: {mensaje_error(error)}", None
+
+#METADATOS
+
+def obtener_info_archivo():
+    """Devuelve (lista de pares (etiqueta, valor), error) sobre contactos.dat."""
+    ruta = Path(RUTA_DATOS)
+    try:
+        if not ruta.exists():
+            return None, "El archivo contactos.dat no existe."
+        datos = os.stat(ruta)
+        modificado = datetime.fromtimestamp(datos.st_mtime).strftime("%d/%m/%Y %H:%M:%S")
+        info = [
+            ("Nombre del archivo", ruta.name),
+            ("Tamaño", f"{datos.st_size} bytes"),
+            ("Última modificación", modificado),
+            ("Permiso de lectura", "Sí" if os.access(ruta, os.R_OK) else "No"),
+            ("Permiso de escritura", "Sí" if os.access(ruta, os.W_OK) else "No"),
+        ]
+        return info, None
+    except OSError as error:
+        return None, mensaje_error(error)
