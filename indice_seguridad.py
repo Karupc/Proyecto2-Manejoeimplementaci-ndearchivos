@@ -8,7 +8,6 @@ RUTA_DATOS = os.path.join(CARPETA, "contactos.dat")
 RUTA_INDICE = os.path.join(CARPETA, "indice.json")
 RUTA_HASH = os.path.join(CARPETA, "contactos.sha256")
 
-
 def mensaje_error(error):
     """Convierte un error común en un mensaje comprensible para el usuario."""
     if isinstance(error, FileNotFoundError):
@@ -36,13 +35,55 @@ def cargar_indice():
             raise ValueError("El índice contiene valores inválidos.")
     return indice
 
-
 def guardar_indice(indice):
     """Guarda o actualiza el diccionario del índice en indice.json."""
     with open(RUTA_INDICE, "w", encoding="utf-8") as archivo:
         json.dump(indice, archivo, ensure_ascii=False)
 
-
 def buscar_posicion(indice, id_contacto):
     """Devuelve el número de registro de un ID, o None si no existe."""
     return indice.get(str(id_contacto))
+
+#SHA-256
+
+def calcular_hash(ruta=RUTA_DATOS):
+    """Calcula el hash SHA-256 de un archivo leyéndolo por bloques."""
+    sha = hashlib.sha256()
+    with open(ruta, "rb") as archivo:
+        while True:
+            bloque = archivo.read(4096)
+            if not bloque:
+                break
+            sha.update(bloque)
+    return sha.hexdigest()
+
+def guardar_hash():
+    """Calcula el hash actual de contactos.dat y lo guarda en contactos.sha256."""
+    codigo = calcular_hash()
+    with open(RUTA_HASH, "w", encoding="utf-8") as archivo:
+        archivo.write(codigo)
+    return codigo
+
+def leer_hash_guardado():
+    """Lee el hash almacenado. Devuelve None si el archivo no existe."""
+    if not os.path.exists(RUTA_HASH):
+        return None
+    with open(RUTA_HASH, "r", encoding="utf-8") as archivo:
+        return archivo.read().strip()
+
+def verificar_integridad():
+    """Compara el hash actual con el guardado. Devuelve (integro, mensaje)."""
+    try:
+        if not os.path.exists(RUTA_DATOS):
+            return False, "El archivo contactos.dat no existe."
+        guardado = leer_hash_guardado()
+        if guardado is None:
+            return False, "No se encontró contactos.sha256, no se puede verificar."
+        actual = calcular_hash()
+        if actual == guardado:
+            return True, "El archivo contactos.dat mantiene su integridad."
+        return False, ("ADVERTENCIA: el hash de contactos.dat no coincide con el "
+                       "almacenado. El archivo pudo haber sido modificado fuera "
+                       "de la aplicación.")
+    except OSError as error:
+        return False, mensaje_error(error)
