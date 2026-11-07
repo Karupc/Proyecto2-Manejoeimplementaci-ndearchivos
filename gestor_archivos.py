@@ -62,3 +62,64 @@ def leer_registro(archivo, numero_registro):
     if len(registro) != TAMANO_REGISTRO:
         raise ValueError(f"El registro {numero_registro} está incompleto o fuera del archivo.")
     return decodificar_registro(registro)
+
+def reconstruir_indice():
+    """Reconstruye el índice leyendo contactos.dat registro por registro.
+    Solo se usa si el índice está corrupto o vacío (no sirve para buscar IDs)."""
+    indice = {}
+    if not os.path.exists(RUTA_DATOS):
+        return indice
+    with open(RUTA_DATOS, "rb") as archivo:
+        numero = 0
+        while True:
+            registro = archivo.read(TAMANO_REGISTRO)
+            if len(registro) < TAMANO_REGISTRO:
+                break
+            try:
+                indice[str(decodificar_registro(registro)["id"])] = numero
+            except ValueError:
+                pass  # registro ilegible: se omite
+            numero += 1
+    return indice
+
+
+def obtener_indice():
+    """Carga el índice. Si está corrupto o vacío (con datos) lo reconstruye.
+    Devuelve (indice, aviso)."""
+    try:
+        indice = indice_seguridad.cargar_indice()
+    except ValueError:
+        try:
+            os.replace(RUTA_INDICE, RUTA_INDICE + ".corrupto")  # conserva copia
+        except OSError:
+            pass
+        indice = reconstruir_indice()
+        indice_seguridad.guardar_indice(indice)
+        return indice, ("indice.json estaba corrupto. Se guardó una copia "
+                        "(indice.json.corrupto) y se reconstruyó desde contactos.dat.")
+    if not indice and os.path.exists(RUTA_DATOS) and os.path.getsize(RUTA_DATOS) > 0:
+        indice = reconstruir_indice()
+        indice_seguridad.guardar_indice(indice)
+        return indice, "El índice estaba vacío y se reconstruyó desde contactos.dat."
+    return indice, None
+
+
+def iniciar_almacenamiento():
+    """Crea los archivos faltantes y carga el índice al iniciar la aplicación.
+    Devuelve una lista de avisos (vacía si todo está bien)."""
+    avisos = []
+    error = indice_seguridad.inicializar_archivos()
+    if error:
+        avisos.append(error)
+    try:
+        indice, aviso = obtener_indice()
+        if aviso:
+            avisos.append(aviso)
+    except OSError as error:
+        avisos.append(mensaje_error(error))
+    return avisos
+
+
+def con_aviso(mensaje, aviso):
+    """Agrega el aviso del índice (si existe) al mensaje."""
+    return mensaje + (f"\n\n{aviso}" if aviso else "")
