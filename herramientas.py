@@ -104,3 +104,29 @@ def generar_pdf():
         return True, f"Reporte generado con {len(contactos)} contactos: reporte_contactos.pdf"
     except Exception as error:
         return False, f"Error al generar el PDF: {mensaje_error(error)}"
+
+#ZIP
+
+def crear_respaldo():
+    """Crea respaldo.zip con contactos.dat e indice.json.
+    Devuelve (ok, mensaje, tamanos). tamanos es un diccionario o None."""
+    archivos = [("contactos.dat", RUTA_DATOS), ("indice.json", RUTA_INDICE)]
+    for nombre, ruta in archivos:
+        if not os.path.exists(ruta):
+            return False, f"No se puede crear el respaldo: {nombre} no existe.", None
+        if not os.access(ruta, os.R_OK):
+            return False, f"No hay permiso de lectura sobre {nombre}.", None
+    try:
+        with zipfile.ZipFile(RUTA_ZIP, "w", zipfile.ZIP_DEFLATED) as zip_archivo:
+            for nombre, ruta in archivos:
+                zip_archivo.write(ruta, arcname=nombre)
+        original = sum(os.path.getsize(ruta) for nombre, ruta in archivos)
+        comprimido = os.path.getsize(RUTA_ZIP)
+        if original == 0:
+            porcentaje = 0.0  # evita la división entre cero
+        else:
+            porcentaje = ((original - comprimido) / original) * 100
+        tamanos = {"original": original, "comprimido": comprimido, "porcentaje": porcentaje}
+        return True, "Respaldo creado: respaldo.zip", tamanos
+    except (OSError, zipfile.BadZipFile) as error:
+        return False, f"Error al crear el respaldo: {mensaje_error(error)}", None
