@@ -76,7 +76,9 @@ def reconstruir_indice():
             if len(registro) < TAMANO_REGISTRO:
                 break
             try:
-                indice[str(decodificar_registro(registro)["id"])] = numero
+                datos = decodificar_registro(registro)
+                if datos["id"] != 0:  # 0 = registro borrado
+                    indice[str(datos["id"])] = numero
             except ValueError:
                 pass  # registro ilegible: se omite
             numero += 1
@@ -99,8 +101,9 @@ def obtener_indice():
                         "(indice.json.corrupto) y se reconstruyó desde contactos.dat.")
     if not indice and os.path.exists(RUTA_DATOS) and os.path.getsize(RUTA_DATOS) > 0:
         indice = reconstruir_indice()
-        indice_seguridad.guardar_indice(indice)
-        return indice, "El índice estaba vacío y se reconstruyó desde contactos.dat."
+        if indice:
+            indice_seguridad.guardar_indice(indice)
+            return indice, "El índice estaba vacío y se reconstruyó desde contactos.dat."
     return indice, None
 
 
@@ -207,3 +210,27 @@ def exportar_contactos():
         return contactos, None
     except (OSError, ValueError) as error:
         return None, mensaje_error(error)
+
+def eliminar_contacto(id_texto):
+    """Eliminación lógica: marca el registro con ID 0 y lo quita del índice."""
+    id_contacto = convertir_id(id_texto)
+    if id_contacto is None:
+        return False, "El ID debe ser un número entero positivo."
+    try:
+        indice, aviso = obtener_indice()
+        numero_registro = indice_seguridad.buscar_posicion(indice, id_contacto)
+        if numero_registro is None:
+            return False, con_aviso(f"No existe un contacto con el ID {id_contacto}.", aviso)
+        with open(RUTA_DATOS, "rb+") as archivo:
+            actual = leer_registro(archivo, numero_registro)  # confirma el ID
+            if actual["id"] != id_contacto:
+                return False, "El índice no coincide con el contenido de contactos.dat."
+            archivo.seek(numero_registro * TAMANO_REGISTRO)
+            print(f"[tell] Puntero en el byte {archivo.tell()} antes de marcar como borrado el registro {numero_registro}")
+            archivo.write(b"0".ljust(TAMANO_REGISTRO, b" "))  # ID = 0, resto en blanco
+        del indice[str(id_contacto)]
+        indice_seguridad.guardar_indice(indice)
+        indice_seguridad.guardar_hash()
+        return True, con_aviso(f"Contacto {id_contacto} eliminado.", aviso)
+    except (OSError, ValueError) as error:
+        return False, mensaje_error(error)

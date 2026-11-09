@@ -218,6 +218,18 @@ def accion_respaldo():
         ("Reducción", f"{tamanos['porcentaje']:.2f} %"),
     ])
 
+def accion_eliminar():
+    id_texto = campos["id"].get()
+    if not messagebox.askyesno("Eliminar contacto", f"¿Eliminar el contacto con ID {id_texto}?"):
+        return
+    ok, mensaje = gestor_archivos.eliminar_contacto(id_texto)
+    if ok:
+        messagebox.showinfo("Contacto eliminado", mensaje)
+        limpiar_campos()
+        actualizar_integridad()
+    else:
+        messagebox.showerror("No se pudo eliminar", mensaje)
+
 
 def accion_info_archivo():
     info, error = herramientas.obtener_info_archivo()
@@ -250,6 +262,7 @@ def construir_contactos():
     crear_boton(botones, "Buscar", accion_buscar, False, ancho=110).pack(side="left", padx=5)
     crear_boton(botones, "Modificar", accion_modificar, False, ancho=110).pack(side="left", padx=5)
     crear_boton(botones, "Limpiar", accion_limpiar_boton, False, ancho=110).pack(side="left", padx=5)
+    crear_boton(botones, "Eliminar", accion_eliminar, False, ancho=110).pack(side="left", padx=5)
 
     etiqueta_resultado = tk.Label(tarjeta, text="", bg=COLOR_TARJETA, fg=COLOR_TEXTO_SEC,
                                   font=(FUENTE, 9), wraplength=600, justify="left")
